@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>팀원별 KPI 달성률 트래커</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f4;
+    --bg3: #eeedea;
+    --text: #1a1a1a;
+    --text2: #6b6b6b;
+    --text3: #aaa;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.2);
+    --r: 8px;
+    --rl: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1f1f1f;
+      --bg2: #2a2a2a;
+      --bg3: #141414;
+      --text: #f0f0f0;
+      --text2: #999;
+      --text3: #555;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg3);
+    color: var(--text);
+    padding: 2rem 1.5rem 3rem;
+    min-height: 100vh;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .header h1 { font-size: 18px; font-weight: 600; }
+
+  .badge {
+    font-size: 12px;
+    color: var(--text2);
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--r);
+    padding: 4px 10px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 12px;
+    margin-bottom: 1.5rem;
+  }
+
+  .card {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--rl);
+    padding: 1rem 1.25rem;
+  }
+
+  .ch { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+
+  .av {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .nm { font-size: 14px; font-weight: 600; color: var(--text); }
+  .br { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  .row { margin-bottom: 12px; }
+  .row:last-child { margin-bottom: 0; }
+
+  .rl { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .lbl { font-size: 11px; color: var(--text2); }
+  .ri { display: flex; align-items: baseline; gap: 6px; }
+  .pct { font-size: 13px; font-weight: 600; }
+  .cnt { font-size: 11px; color: var(--text2); }
+
+  .track-wrap { padding-top: 22px; position: relative; }
+
+  .today-line {
+    position: absolute;
+    top: 0;
+    height: 22px;
+    width: 1px;
+    background: var(--text3);
+  }
+
+  .today-label {
+    position: absolute;
+    top: 0;
+    font-size: 10px;
+    color: var(--text3);
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  .track {
+    height: 11px;
+    background: var(--bg2);
+    border-radius: 99px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .track-line {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: var(--text3);
+    z-index: 2;
+  }
+
+  .fill {
+    height: 100%;
+    border-radius: 99px;
+    width: 0%;
+    max-width: 100%;
+    transition: width 1.2s cubic-bezier(.4,0,.2,1);
+  }
+
+  .div { height: 0.5px; background: var(--border); margin: 10px 0; }
+
+  .rev-input {
+    width: 100%;
+    margin-top: 7px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--text);
+    background: var(--bg2);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--r);
+    outline: none;
+  }
+  .rev-input:focus { border-color: #378ADD; }
+  .rev-input::placeholder { color: var(--text3); }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; }
+  .li { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
+  .ld { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 팀원별 KPI 달성률 트래커</h1>
+  <span class="badge" id="dateBadge"></span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="legend">
+  <div class="li"><span class="ld" style="background:#378ADD"></span>기획 (목표 60건/분기)</div>
+  <div class="li"><span class="ld" style="background:#1D9E75"></span>제작 (목표 120건/분기)</div>
+  <div class="li"><span class="ld" style="background:#BA7517"></span>매출 (직접 입력)</div>
+  <div class="li"><span style="width:1px;height:10px;background:var(--text3);display:inline-block"></span>오늘 기준선</div>
+</div>
+
+<script>
+const PLAN_GOAL = 60;
+const MAKE_GOAL = 120;
+
+function getQProgress() {
+  var now   = new Date();
+  var start = new Date(now.getFullYear(), 3, 1);
+  var end   = new Date(now.getFullYear(), 6, 0);
+  var total = Math.floor((end - start) / 86400000) + 1;
+  var elapsed = Math.min(Math.floor((now - start) / 86400000) + 1, total);
+  return { pct: Math.round(elapsed / total * 100) };
+}
+
+var q = getQProgress();
+var now = new Date();
+document.getElementById('dateBadge').textContent =
+  now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 기준 · 분기 ' + q.pct + '% 경과';
+
+var members = [
+  { name:'이성은', brand:'알파에이징핏',          initials:'이성', bg:'#E6F1FB', fg:'#185FA5', plan:10, make:9  },
+  { name:'이수아', brand:'알파에이징핏',          initials:'이수', bg:'#E6F1FB', fg:'#185FA5', plan:15, make:14 },
+  { name:'정해슬', brand:'알파에이징핏 · 림데이', initials:'정해', bg:'#E1F5EE', fg:'#0F6E56', plan:22, make:24 },
+  { name:'조영웅', brand:'안티칼알파',            initials:'조영', bg:'#FBEAF0', fg:'#993556', plan:20, make:18 },
+  { name:'신소예', brand:'안티칼알파',            initials:'신소', bg:'#FBEAF0', fg:'#993556', plan:25, make:28 },
+  { name:'오유림', brand:'림데이 · 알파에이징핏', initials:'오유', bg:'#E1F5EE', fg:'#0F6E56', plan:27, make:31 },
+];
+
+var revGoals = {};
+var revActuals = {};
+var todayLeft = Math.min(q.pct, 96);
+
+function fmt(n) { return Math.round(n).toLocaleString('ko-KR'); }
+function pctColor(pct) { return pct >= q.pct ? '#1D9E75' : '#E24B4A'; }
+
+function updateRev(name) {
+  var actual = revActuals[name] || 0;
+  var goal   = revGoals[name] || 0;
+  var pct    = goal > 0 ? Math.min(Math.round(actual / goal * 100), 100) : 0;
+  var g = document.getElementById('rg_' + name);
+  var p = document.getElementById('rp_' + name);
+  var c = document.getElementById('rc_' + name);
+  if (g) g.style.width = pct + '%';
+  if (p) {
+    p.textContent = goal > 0 ? pct + '%' : '-';
+    p.style.color = goal > 0 ? pctColor(pct) : 'var(--text3)';
+  }
+  if (c) {
+    c.textContent = goal > 0
+      ? fmt(actual) + '원 / ' + fmt(goal) + '원'
+      : '목표액을 먼저 입력하세요';
+  }
+}
+
+function makeTrack(fillId, color) {
+  return '<div class="track-wrap">' +
+    '<div class="today-label" style="left:' + todayLeft + '%">오늘 ' + q.pct + '%</div>' +
+    '<div class="today-line"  style="left:' + todayLeft + '%"></div>' +
+    '<div class="track">' +
+      '<div class="track-line" style="left:' + todayLeft + '%"></div>' +
+      '<div class="fill" id="' + fillId + '" style="background:' + color + '"></div>' +
+    '</div>' +
+  '</div>';
+}
+
+var grid = document.getElementById('grid');
+var animFills = [];
+
+members.forEach(function(m) {
+  var planPct = Math.round(m.plan / PLAN_GOAL * 100);
+  var makePct = Math.round(m.make / MAKE_GOAL * 100);
+  var k = m.name;
+
+  var card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML =
+    '<div class="ch">' +
+      '<div class="av" style="background:' + m.bg + ';color:' + m.fg + '">' + m.initials + '</div>' +
+      '<div><div class="nm">' + m.name + '</div><div class="br">' + m.brand + '</div></div>' +
+    '</div>' +
+
+    '<div class="row">' +
+      '<div class="rl"><span class="lbl">콘텐츠 기획</span>' +
+        '<span class="ri"><span class="pct" style="color:' + pctColor(planPct) + '">' + planPct + '%</span>' +
+        '<span class="cnt">' + m.plan + ' / ' + PLAN_GOAL + '건</span></span></div>' +
+      makeTrack('pg_' + k, '#378ADD') +
+    '</div>' +
+
+    '<div class="div"></div>' +
+
+    '<div class="row">' +
+      '<div class="rl"><span class="lbl">콘텐츠 제작</span>' +
+        '<span class="ri"><span class="pct" style="color:' + pctColor(makePct) + '">' + makePct + '%</span>' +
+        '<span class="cnt">' + m.make + ' / ' + MAKE_GOAL + '건</span></span></div>' +
+      makeTrack('mg_' + k, '#1D9E75') +
+    '</div>' +
+
+    '<div class="div"></div>' +
+
+    '<div class="row">' +
+      '<div class="rl"><span class="lbl">매출</span>' +
+        '<span class="ri"><span class="pct" id="rp_' + k + '" style="color:var(--text3)">-</span>' +
+        '<span class="cnt" id="rc_' + k + '">목표액을 먼저 입력하세요</span></span></div>' +
+      makeTrack('rg_' + k, '#BA7517') +
+      '<input class="rev-input" type="number" placeholder="매출 목표액 (원)" ' +
+        'oninput="revGoals[\'' + k + '\']=Number(this.value)||0;updateRev(\'' + k + '\')" ' +
+        'style="margin-bottom:4px">' +
+      '<input class="rev-input" type="number" placeholder="현재 매출액 (원)" ' +
+        'oninput="revActuals[\'' + k + '\']=Number(this.value)||0;updateRev(\'' + k + '\')">' +
+    '</div>';
+
+  grid.appendChild(card);
+  animFills.push({ p: 'pg_' + k, m: 'mg_' + k, planPct: planPct, makePct: makePct });
+});
+
+setTimeout(function() {
+  animFills.forEach(function(f) {
+    var pe = document.getElementById(f.p);
+    var me = document.getElementById(f.m);
+    if (pe) pe.style.width = Math.min(f.planPct, 100) + '%';
+    if (me) me.style.width = Math.min(f.makePct, 100) + '%';
+  });
+}, 150);
+</script>
+</body>
+</html>
